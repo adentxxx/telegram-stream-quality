@@ -87,7 +87,7 @@ The same changes, with a CI workflow for GitHub's `xcode-27` runner, are on the 
 
 ## Notes
 
-- Verified on GitHub's `xcode-27` runner (Xcode 27.1, iOS Simulator): the whole app compiles with the project's `-warnings-as-errors`, including the broadcast extension, and `TelegramCallsUITests` pass ([CI run](https://github.com/adentxxx/Telegram-iOS/actions/runs/44727369731)).
+- Verified on GitHub's `xcode-27` runner (Xcode 27.1, iOS Simulator): every changed module compiles with the project's `-warnings-as-errors` (TelegramVoip, TelegramCallsUI, the broadcast upload extension), the app framework links, and `TelegramCallsUITests` pass ([CI run](https://github.com/adentxxx/Telegram-iOS/actions/runs/44727369731)).
 
 - The iOS Simulator has no camera and no ReplayKit broadcasts. There the camera sheet applies the effects to the selfie placeholder the app already uses for simulated video; screen sharing needs a real device.
 - Premium values are clamped when the settings load, so an account that loses Premium can't keep 1440p or 60 FPS.
