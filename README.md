@@ -46,19 +46,33 @@ The app and the extension already share the app-group container, so the settings
 - **More streaming means more Stars.** Better picture keeps creators streaming in Telegram, where Live Stories already earn Stars from donations and paid comments.
 - **More people turn the camera on.** Blur and lighting remove the main reasons to keep video off in classes, meetings and communities.
 
-## What's in the patch
+## Repository layout
+
+```
+changes.patch      the whole change as one diff against Telegram-iOS (apply it, see below)
+sources/           every changed file in full, at its path in Telegram-iOS
+ci/                GitHub Actions workflow that builds the app and runs the tests
+media/             demo animations (GIF for this page, MP4 in full quality)
+```
+
+The same changes live as commits on the [`concept/stream-quality`](https://github.com/adentxxx/Telegram-iOS/tree/concept/stream-quality) branch of my Telegram-iOS fork, where the CI runs.
+
+## Source files
+
+New files are marked **new**; the rest are upstream files with the changes applied (the exact edits are in `changes.patch`).
+
 
 | File | What |
 | --- | --- |
-| `submodules/TelegramVoip/Sources/ScreencastQualitySettings.swift` | Settings model and storage, target-size math, frame-rate gate, frame processor |
-| `Telegram/BroadcastUpload/BroadcastUploadExtension.swift` | Applies the settings to video and audio buffers |
-| `submodules/TelegramCallsUI/Sources/VideoChatScreen.swift` | Video button menu and chevron badge, opening the sheets |
-| `submodules/TelegramCallsUI/Sources/VideoChatCameraSettingsScreen.swift` | Camera sheet: preview, background options, appearance chips |
-| `submodules/TelegramCallsUI/Sources/VideoChatCameraEffectsCapturer.swift` | Capture session and effects pipeline that feeds the call |
-| `submodules/TelegramCallsUI/Sources/VideoChatShareScreenSettingsScreen.swift` | Share Screen sheet: list rows, context menus, Premium gating |
-| `submodules/TelegramCallsUI/Tests/VideoChatStreamQualityTests.swift` | Unit tests for the quality and Premium rules |
-| `submodules/TelegramCallsUI/BUILD` | Component dependencies, test dependency |
-| `Telegram/Telegram-iOS/en.lproj/Localizable.strings` | New strings |
+| [`submodules/TelegramVoip/Sources/ScreencastQualitySettings.swift`](sources/submodules/TelegramVoip/Sources/ScreencastQualitySettings.swift) | **new** · Settings model and storage, target-size math, frame-rate gate, frame processor |
+| [`Telegram/BroadcastUpload/BroadcastUploadExtension.swift`](sources/Telegram/BroadcastUpload/BroadcastUploadExtension.swift) | Applies the settings to video and audio buffers |
+| [`submodules/TelegramCallsUI/Sources/VideoChatScreen.swift`](sources/submodules/TelegramCallsUI/Sources/VideoChatScreen.swift) | Video button menu and chevron badge, opening the sheets |
+| [`submodules/TelegramCallsUI/Sources/VideoChatCameraSettingsScreen.swift`](sources/submodules/TelegramCallsUI/Sources/VideoChatCameraSettingsScreen.swift) | **new** · Camera sheet: preview, background options, appearance chips |
+| [`submodules/TelegramCallsUI/Sources/VideoChatCameraEffectsCapturer.swift`](sources/submodules/TelegramCallsUI/Sources/VideoChatCameraEffectsCapturer.swift) | **new** · Capture session and effects pipeline that feeds the call |
+| [`submodules/TelegramCallsUI/Sources/VideoChatShareScreenSettingsScreen.swift`](sources/submodules/TelegramCallsUI/Sources/VideoChatShareScreenSettingsScreen.swift) | **new** · Share Screen sheet: list rows, context menus, Premium gating |
+| [`submodules/TelegramCallsUI/Tests/VideoChatStreamQualityTests.swift`](sources/submodules/TelegramCallsUI/Tests/VideoChatStreamQualityTests.swift) | **new** · Unit tests for the quality and Premium rules |
+| [`submodules/TelegramCallsUI/BUILD`](sources/submodules/TelegramCallsUI/BUILD) | Component dependencies, test dependency |
+| [`Telegram/Telegram-iOS/en.lproj/Localizable.strings`](sources/Telegram/Telegram-iOS/en.lproj/Localizable.strings) | New strings |
 
 The sheets are built only from components the app already uses — `ResizableSheetComponent`, `ListSectionComponent`, `ListActionItemComponent`, `GlassBarButtonComponent`, `ButtonComponent`, `ContextController` — so they follow the current Liquid Glass design and the dark call theme.
 
@@ -83,10 +97,11 @@ python3 build-system/Make/Make.py --cacheDir="$HOME/telegram-bazel-cache" test \
     --codesigningInformationPath build-system/fake-codesigning
 ```
 
-The same changes, with a CI workflow for GitHub's `xcode-27` runner, are on the [`concept/stream-quality`](https://github.com/adentxxx/Telegram-iOS/tree/concept/stream-quality) branch of my fork.
+To build in your own fork without a Mac, copy `ci/concept-stream-quality.yml` to `.github/workflows/` and `ci/pick_simulator.py` to `.github/concept/`. The workflow runs on GitHub's `xcode-27` runner, runs the unit tests and uploads a Simulator build of the app.
 
 ## Notes
 
+- Tested by hand in the iOS Simulator: video source menu, Camera sheet with live effects, Share Screen sheet with Premium locks.
 - Verified on GitHub's `xcode-27` runner (Xcode 27.1): the full Telegram app builds for the iOS Simulator with the project's `-warnings-as-errors`, including the broadcast upload extension, and `TelegramCallsUITests` pass ([CI run](https://github.com/adentxxx/Telegram-iOS/actions/runs/44741001012)).
 
 - The iOS Simulator has no camera and no ReplayKit broadcasts. There the camera sheet applies the effects to the selfie placeholder the app already uses for simulated video; screen sharing needs a real device.
