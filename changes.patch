@@ -2105,10 +2105,10 @@ index 00000000..2bc6d40f
 +}
 diff --git a/submodules/TelegramVoip/Sources/ScreencastQualitySettings.swift b/submodules/TelegramVoip/Sources/ScreencastQualitySettings.swift
 new file mode 100644
-index 00000000..4abbf351
+index 00000000..cefab67e
 --- /dev/null
 +++ b/submodules/TelegramVoip/Sources/ScreencastQualitySettings.swift
-@@ -0,0 +1,257 @@
+@@ -0,0 +1,272 @@
 +import Foundation
 +import CoreMedia
 +import CoreVideo
@@ -2251,26 +2251,15 @@ index 00000000..4abbf351
 +}
 +
 +/// Applies `ScreencastQualitySettings` to ReplayKit frames inside the broadcast extension.
-+///
-+/// The extension runs under a hard 50 MB memory limit, so scaling goes through a single
-+/// `VTPixelTransferSession` and a small `CVPixelBufferPool` sized for the target frame:
-+/// no CoreImage context, no intermediate copies.
 +public final class ScreencastFrameProcessor {
 +    public let settings: ScreencastQualitySettings
 +    private var gate: ScreencastFrameRateGate
-+    private var transferSession: VTPixelTransferSession?
-+    private var pool: CVPixelBufferPool?
-+    private var poolKey: (width: Int, height: Int, format: OSType)?
++    /// `ScreencastFrameScaler` on iOS 16+; frames are sent at source size on iOS 15.
++    private var scaler: AnyObject?
 +
 +    public init(settings: ScreencastQualitySettings) {
 +        self.settings = settings
 +        self.gate = ScreencastFrameRateGate(frameRate: settings.frameRate)
-+    }
-+
-+    deinit {
-+        if let transferSession = self.transferSession {
-+            VTPixelTransferSessionInvalidate(transferSession)
-+        }
 +    }
 +
 +    /// Returns the frame to send, or `nil` to drop it.
@@ -2289,22 +2278,55 @@ index 00000000..4abbf351
 +        if targetSize == sourceSize {
 +            return sampleBuffer
 +        }
-+        guard let scaledPixelBuffer = self.scale(pixelBuffer: sourcePixelBuffer, to: targetSize) else {
++        guard #available(iOS 16.0, *) else {
++            return sampleBuffer
++        }
++        let scaler: ScreencastFrameScaler
++        if let current = self.scaler as? ScreencastFrameScaler {
++            scaler = current
++        } else {
++            scaler = ScreencastFrameScaler()
++            self.scaler = scaler
++        }
++        guard let scaledPixelBuffer = scaler.scale(pixelBuffer: sourcePixelBuffer, to: targetSize) else {
 +            return sampleBuffer
 +        }
 +        return makeSampleBuffer(pixelBuffer: scaledPixelBuffer, copyingTimingAndAttachmentsFrom: sampleBuffer) ?? sampleBuffer
 +    }
++}
 +
-+    private func scale(pixelBuffer: CVPixelBuffer, to size: CGSize) -> CVPixelBuffer? {
++/// The broadcast extension runs under a hard 50 MB memory limit, so scaling goes through a single
++/// `VTPixelTransferSession` and a small `CVPixelBufferPool` sized for the target frame:
++/// no Core Image context, no intermediate copies.
++@available(iOS 16.0, *)
++private final class ScreencastFrameScaler {
++    private var transferSession: VTPixelTransferSession?
++    private var pool: CVPixelBufferPool?
++    private var poolWidth: Int = 0
++    private var poolHeight: Int = 0
++    private var poolFormat: OSType = 0
++
++    init() {
++        var session: VTPixelTransferSession?
++        VTPixelTransferSessionCreate(allocator: kCFAllocatorDefault, pixelTransferSessionOut: &session)
++        if let session {
++            VTSessionSetProperty(session, key: kVTPixelTransferPropertyKey_ScalingMode, value: kVTScalingMode_Normal)
++        }
++        self.transferSession = session
++    }
++
++    deinit {
++        if let transferSession = self.transferSession {
++            VTPixelTransferSessionInvalidate(transferSession)
++        }
++    }
++
++    func scale(pixelBuffer: CVPixelBuffer, to size: CGSize) -> CVPixelBuffer? {
 +        let width = Int(size.width)
 +        let height = Int(size.height)
 +        let format = CVPixelBufferGetPixelFormatType(pixelBuffer)
 +
-+        var needsPool = true
-+        if let poolKey = self.poolKey, poolKey.width == width, poolKey.height == height, poolKey.format == format {
-+            needsPool = false
-+        }
-+        if needsPool {
++        if self.pool == nil || self.poolWidth != width || self.poolHeight != height || self.poolFormat != format {
 +            let attributes: [String: Any] = [
 +                kCVPixelBufferPixelFormatTypeKey as String: format,
 +                kCVPixelBufferWidthKey as String: width,
@@ -2317,16 +2339,9 @@ index 00000000..4abbf351
 +            var pool: CVPixelBufferPool?
 +            CVPixelBufferPoolCreate(kCFAllocatorDefault, poolAttributes as CFDictionary, attributes as CFDictionary, &pool)
 +            self.pool = pool
-+            self.poolKey = (width, height, format)
-+        }
-+
-+        if self.transferSession == nil {
-+            var session: VTPixelTransferSession?
-+            VTPixelTransferSessionCreate(allocator: kCFAllocatorDefault, pixelTransferSessionOut: &session)
-+            if let session {
-+                VTSessionSetProperty(session, key: kVTPixelTransferPropertyKey_ScalingMode, value: kVTScalingMode_Normal)
-+            }
-+            self.transferSession = session
++            self.poolWidth = width
++            self.poolHeight = height
++            self.poolFormat = format
 +        }
 +
 +        guard let pool = self.pool, let transferSession = self.transferSession else {
