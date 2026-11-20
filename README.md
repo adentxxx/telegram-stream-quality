@@ -1,5 +1,7 @@
 # Stream quality & camera effects for Telegram video chats
 
+[![Build and tests](https://github.com/adentxxx/Telegram-iOS/actions/workflows/concept-stream-quality.yml/badge.svg?branch=concept/stream-quality)](https://github.com/adentxxx/Telegram-iOS/actions/workflows/concept-stream-quality.yml?query=branch%3Aconcept%2Fstream-quality)
+
 Telegram already lets anyone go live, stream from OBS and earn Stars. But in a video chat you still can't choose how your stream looks: screen sharing has no resolution or frame-rate setting, and the camera has no background or lighting options.
 
 This concept adds both, inside the existing call UI and without new call logic. It is a patch for [Telegram-iOS](https://github.com/TelegramMessenger/Telegram-iOS), written in the client's own code and components.
